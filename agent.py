@@ -1,17 +1,16 @@
+from typing import Dict, List
 from langchain_community.llms import Ollama
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import LLMChain
 
 # LLM (Ollama – local)
-
 llm = Ollama(
     model="llama3.2:3b-instruct-q4_K_M",
-    temperature=0.6
+    temperature=0.6,
 )
 
 # Agent Persona Prompt
-
 SYSTEM_PROMPT = """
 You are an older person who is not very good with technology.
 You are polite, cautious, and slightly worried.
@@ -35,27 +34,43 @@ prompt = ChatPromptTemplate.from_messages(
     [
         ("system", SYSTEM_PROMPT),
         MessagesPlaceholder(variable_name="history"),
-        ("human", "{input}")
+        ("human", "{input}"),
     ]
 )
 
-# Memory (per session)
-memory = ConversationBufferMemory(
-    memory_key="history",
-    return_messages=True
-)
+# Per-session chains (each has its own conversation memory)
+_chains: Dict[str, LLMChain] = {}
 
-# Chain
-chain = LLMChain(
-    llm=llm,
-    prompt=prompt,
-    memory=memory,
-    verbose=False
-)
 
-def generate_reply(user_message: str) -> str:
+def _get_or_create_chain(session_id: str) -> LLMChain:
+    """Get or create an LLM chain with its own memory for this session."""
+    if session_id in _chains:
+        return _chains[session_id]
+    memory = ConversationBufferMemory(
+        memory_key="history",
+        return_messages=True,
+    )
+    chain = LLMChain(
+        llm=llm,
+        prompt=prompt,
+        memory=memory,
+        verbose=False,
+    )
+    _chains[session_id] = chain
+    return chain
+
+
+def generate_reply(session_id: str, user_message: str) -> str:
     """
     Generate a human-like reply to the scammer message.
+    Uses session-scoped conversation memory so each session has its own history.
     """
+    chain = _get_or_create_chain(session_id)
     response = chain.predict(input=user_message)
-    return response.strip()
+    return response.strip() if response else ""
+
+
+def cleanup_chains_for_sessions(session_ids: List[str]) -> None:
+    """Drop in-memory chains for the given session ids (e.g. after session cleanup)."""
+    for sid in session_ids:
+        _chains.pop(sid, None)
