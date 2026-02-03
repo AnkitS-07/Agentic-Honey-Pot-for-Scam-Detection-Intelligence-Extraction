@@ -16,18 +16,11 @@ URL_PATTERN = re.compile(
     r"https?://[^\s\"'>]+"
 )
 
-SUSPICIOUS_KEYWORDS = {
-    "otp",
-    "upi",
-    "bank",
-    "verify",
-    "blocked",
-    "urgent",
-    "suspended",
-    "kyc",
-    "pin",
-    "refund"
-}
+SUSPICIOUS_KEYWORDS = frozenset({
+    "otp", "upi", "bank", "verify", "blocked", "urgent", "suspended",
+    "kyc", "pin", "refund", "gift card", "crypto", "bitcoin", "btc",
+    "gold", "money",
+})
 
 def _normalize_number(num: str) -> str:
     """Keep only digits for comparison."""
