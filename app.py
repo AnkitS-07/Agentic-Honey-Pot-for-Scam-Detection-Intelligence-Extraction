@@ -116,9 +116,10 @@ def health():
 
 @app.get("/honeypot/message")
 @app.get("/honeypot/message/")
-def honeypot_get_guard():
+def honeypot_probe_ok():
     return {
-        "detail": "Use POST /honeypot/message with JSON body"
+        "status": "success",
+        "message": "Honeypot endpoint reachable"
     }
 
 # Main endpoint
@@ -196,3 +197,4 @@ def handle_message(
         "status": "success",
         "reply": reply_text
     }
+
