@@ -113,9 +113,16 @@ def health():
     """Health check for load balancers and deployments."""
     return {"status": "ok"}
 
+@app.get("/honeypot/message")
+@app.get("/honeypot/message/")
+def honeypot_get_guard():
+    return {
+        "detail": "Use POST /honeypot/message with JSON body"
+    }
 
 # Main endpoint
 @app.post("/honeypot/message")
+@app.post("/honeypot/message/")
 def handle_message(
     body: IncomingRequest,
     x_api_key: str = Header(None)
@@ -188,3 +195,4 @@ def handle_message(
         "status": "success",
         "reply": reply_text
     }
+
