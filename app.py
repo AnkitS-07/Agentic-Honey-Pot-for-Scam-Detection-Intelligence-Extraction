@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import logging
@@ -30,6 +30,7 @@ CALLBACK_TIMEOUT = 10
 
 # FastAPI app
 app = FastAPI(title="Agentic Honeypot API")
+
 @app.get("/")
 def read_root():
     return {
@@ -113,42 +114,16 @@ def health():
     """Health check for load balancers and deployments."""
     return {"status": "ok"}
 
-@app.get("/honeypot/message")
-@app.get("/honeypot/message/")
-def honeypot_get_guard():
-    return {
-        "detail": "Use POST /honeypot/message with JSON body"
-    }
 
 # Main endpoint
 @app.post("/honeypot/message")
-@app.post("/honeypot/message/")
-async def handle_message(
-    request: Request,
+def handle_message(
+    body: IncomingRequest,
     x_api_key: str = Header(None)
 ):
     # 1️ API key validation
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
-
-    # Read JSON safely (GUVI tester sends no body)
-    try:
-        body_json = await request.json()
-    except Exception:
-        body_json = None
-
-    # GUVI endpoint tester compatibility
-    if not body_json:
-        return {
-            "status": "success",
-            "reply": "Honeypot endpoint is active and ready."
-        }
-
-    # Validate body
-    try:
-        body = IncomingRequest(**body_json)
-    except Exception as e:
-        raise HTTPException(status_code=422, detail=str(e))
 
     session_id = body.sessionId
     message_text = body.message.text
@@ -214,5 +189,3 @@ async def handle_message(
         "status": "success",
         "reply": reply_text
     }
-
-
