@@ -9,5 +9,10 @@ requests==2.31.0
 python-dotenv==1.0.1
 
 transformers==4.38.2
-torch==2.1.2
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.1.2+cpu
+
 regex==2023.12.25
+
+
+
