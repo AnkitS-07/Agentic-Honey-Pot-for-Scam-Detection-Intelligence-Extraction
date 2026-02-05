@@ -30,7 +30,16 @@ CALLBACK_TIMEOUT = 10
 
 # FastAPI app
 app = FastAPI(title="Agentic Honeypot API")
-
+@app.get("/")
+def read_root():
+    return {
+        "message": "Agentic Honeypot API is running",
+        "endpoints": {
+            "health": "/health",
+            "main": "POST /honeypot/message (requires X-API-Key header)",
+            "docs": "/docs (Swagger UI)"
+        }
+    }
 
 # Session manager (in-memory)
 session_manager = SessionManager()
