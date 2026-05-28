@@ -8,7 +8,7 @@ import time
 
 from session_manager import SessionManager
 from detector import detect_scam
-from agent import generate_reply, cleanup_chains_for_sessions
+from agent import generate_reply
 from extract import extract_intelligence
 
 # Load environment variables
@@ -141,12 +141,11 @@ def handle_message(
     if sender != "scammer":
         return {"status": "ignored", "reply": ""}
 
-    # 3️ Cleanup stale sessions (exclude current); sync agent memory
-    removed_ids = session_manager.cleanup_stale(
+    # 3️ Cleanup stale sessions (exclude current)
+    session_manager.cleanup_stale(
         max_idle_seconds=86400,
         exclude_session_id=session_id,
     )
-    cleanup_chains_for_sessions(removed_ids)
 
     # 4️ Load or create session
     session = session_manager.get_session(session_id)
@@ -168,9 +167,10 @@ def handle_message(
     if session["confidence"] >= 0.6 and not session["agent_active"]:
         session_manager.activate_agent(session_id)
 
-    # 9️ Generate reply (session_id for per-session conversation memory)
+    # 9️ Generate reply (stateless chain with chat_history from SQLite)
     if session["agent_active"]:
-        reply_text = generate_reply(session_id, message_text)
+        reply_text, updated_history = generate_reply(session["chat_history"], message_text)
+        session_manager.save_chat_history(session_id, updated_history)
     else:
         reply_text = "I am not very sure what this means. Can you please explain?"
 

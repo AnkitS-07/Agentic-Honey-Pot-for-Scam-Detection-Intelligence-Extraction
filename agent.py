@@ -1,8 +1,9 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from langchain_community.llms import Ollama
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferWindowMemory
 from langchain.chains import LLMChain
+from langchain.schema import HumanMessage, AIMessage
 
 # LLM (Ollama – local)
 llm = Ollama(
@@ -38,39 +39,40 @@ prompt = ChatPromptTemplate.from_messages(
     ]
 )
 
-# Per-session chains (each has its own conversation memory)
-_chains: Dict[str, LLMChain] = {}
-
-
-def _get_or_create_chain(session_id: str) -> LLMChain:
-    """Get or create an LLM chain with its own memory for this session."""
-    if session_id in _chains:
-        return _chains[session_id]
-    memory = ConversationBufferMemory(
+def generate_reply(chat_history: List[Dict[str, str]], user_message: str) -> Tuple[str, List[Dict[str, str]]]:
+    """
+    Generate a human-like reply to the scammer message.
+    Uses the chat history passed from the database to maintain context statelessly.
+    """
+    memory = ConversationBufferWindowMemory(
         memory_key="history",
         return_messages=True,
+        k=10,  # Keep only the last 10 messages to prevent LLM context overflow
     )
+    
+    # Pre-populate memory with existing history
+    for msg in chat_history:
+        if msg["role"] == "human":
+            memory.chat_memory.add_user_message(msg["content"])
+        elif msg["role"] == "ai":
+            memory.chat_memory.add_ai_message(msg["content"])
+            
     chain = LLMChain(
         llm=llm,
         prompt=prompt,
         memory=memory,
         verbose=False,
     )
-    _chains[session_id] = chain
-    return chain
-
-
-def generate_reply(session_id: str, user_message: str) -> str:
-    """
-    Generate a human-like reply to the scammer message.
-    Uses session-scoped conversation memory so each session has its own history.
-    """
-    chain = _get_or_create_chain(session_id)
+    
     response = chain.predict(input=user_message)
-    return response.strip() if response else ""
-
-
-def cleanup_chains_for_sessions(session_ids: List[str]) -> None:
-    """Drop in-memory chains for the given session ids (e.g. after session cleanup)."""
-    for sid in session_ids:
-        _chains.pop(sid, None)
+    reply = response.strip() if response else ""
+    
+    # Append the new interaction to the history
+    chat_history.append({"role": "human", "content": user_message})
+    chat_history.append({"role": "ai", "content": reply})
+    
+    # Enforce window size manually on the saved state as well
+    if len(chat_history) > 20: # 10 turns
+        chat_history = chat_history[-20:]
+        
+    return reply, chat_history
