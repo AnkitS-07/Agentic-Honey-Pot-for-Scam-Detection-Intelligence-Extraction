@@ -88,6 +88,9 @@ ollama pull llama3.2:3b-instruct-q4_K_M
 ### Configuration
 
 Create a `.env` file:
+
+> **Note:** Keep your `.env` file out of version control and never commit real API keys or callback URLs. Use placeholder values in shared examples.
+
 ```env
 API_KEY=your_secret_api_key
 GUVI_CALLBACK_URL=https://your-callback-endpoint.com/api/result
